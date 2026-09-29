@@ -5,24 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>AR Music Player</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; background: #000; }
+    html, body {
+      margin: 0; padding: 0; height: 100%; overflow: hidden;
+      font-family: sans-serif; background: transparent;
+    }
+
+    /* Принудительно показываем видео-элемент, который создаёт AR.js */
+    video {
+      position: fixed !important;
+      top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
+      object-fit: cover !important;
+      z-index: 1 !important;
+      display: block !important;
+    }
+
+    /* Холст A-Frame — прозрачный поверх видео */
+    .a-canvas {
+      position: fixed !important;
+      top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
+      z-index: 2 !important;
+      background: transparent !important;
+    }
+
     #start-screen {
       position: fixed; inset: 0; background: #111; color: #fff;
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; z-index: 9999; text-align: center; padding: 20px;
     }
-    #start-btn {
-      padding: 18px 40px; font-size: 20px; border: none;
-      border-radius: 50px; background: #4caf50; color: #fff; cursor: pointer;
+    #start-btn, #test-btn {
+      padding: 16px 32px; font-size: 18px; border: none;
+      border-radius: 50px; color: #fff; cursor: pointer; margin: 6px;
     }
+    #start-btn { background: #4caf50; }
+    #test-btn  { background: #2196f3; }
     #status { margin-top: 20px; font-size: 13px; opacity: 0.7; white-space: pre-line; }
     #debug {
       position: fixed; top: 6px; left: 6px; z-index: 10000;
       color: #0f0; font-size: 12px; font-family: monospace;
-      background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px;
-      pointer-events: none;
+      background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px;
+      pointer-events: none; max-width: 90vw;
+    }
+    #video-test {
+      position: fixed; inset: 0; width: 100vw; height: 100vh;
+      object-fit: cover; z-index: 8000; display: none;
     }
   </style>
 </head>
@@ -31,13 +60,14 @@
   <div id="start-screen">
     <h1>AR Music Player</h1>
     <p>Наведите камеру на маркер Hiro</p>
-    <button id="start-btn">Начать</button>
+    <button id="test-btn">Тест камеры</button>
+    <button id="start-btn">Начать AR</button>
     <p id="status"></p>
   </div>
 
   <div id="debug">loading…</div>
+  <video id="video-test" playsinline autoplay muted></video>
 
-  <!-- важно: БЕЗ атрибута embedded -->
   <a-scene arjs="sourceType: webcam; debugUIEnabled: false;">
     <a-assets>
       <audio id="music" src="assets/sample.mp3" preload="auto"></audio>
@@ -54,39 +84,48 @@
   <script>
     const startScreen = document.querySelector('#start-screen');
     const startBtn    = document.querySelector('#start-btn');
+    const testBtn     = document.querySelector('#test-btn');
     const statusEl    = document.querySelector('#status');
     const debugEl     = document.querySelector('#debug');
     const marker      = document.querySelector('#marker');
     const music       = document.querySelector('#music');
+    const videoTest   = document.querySelector('#video-test');
 
-    // Отладка: показываем, что скрипты вообще загрузились
-    if (window.AFRAME) {
-      debugEl.textContent = 'AFRAME ok';
-    } else {
-      debugEl.textContent = 'AFRAME NOT loaded';
-    }
+    debugEl.textContent = window.AFRAME ? 'AFRAME ok' : 'AFRAME NOT loaded';
 
-    // Разблокировка аудио без «заигрывания»
-    startBtn.addEventListener('click', () => {
-      // 1. "Тихая" разблокировка: ставим громкость 0, играем 1 кадр, стопаем
-      music.volume = 0;
-      const p = music.play();
-      if (p && p.then) {
-        p.then(() => {
-          music.pause();
-          music.currentTime = 0;
-          music.volume = 1;
-        }).catch(err => {
-          statusEl.textContent = 'Ошибка аудио: ' + err.message;
-          music.volume = 1;
+    // --- ТЕСТ КАМЕРЫ (без AR) ---
+    testBtn.addEventListener('click', async () => {
+      debugEl.textContent = 'testing camera…';
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('getUserMedia недоступен (нужен HTTPS)');
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
         });
-      } else {
+        videoTest.srcObject = stream;
+        videoTest.style.display = 'block';
+        await videoTest.play();
+        debugEl.textContent = 'camera OK — видео видно?';
+      } catch (e) {
+        debugEl.textContent = 'camera FAIL: ' + e.name + ' — ' + e.message;
+      }
+    });
+
+    // --- РАЗБЛОКИРОВКА АУДИО (через muted, без звука) ---
+    startBtn.addEventListener('click', async () => {
+      try {
+        music.muted = true;
+        await music.play();
         music.pause();
         music.currentTime = 0;
-        music.volume = 1;
+        music.muted = false;
+      } catch (err) {
+        statusEl.textContent = 'Ошибка аудио: ' + err.message;
+        music.muted = false;
       }
-
-      // 2. Скрываем экран "Начать"
+      videoTest.style.display = 'none';
       startScreen.style.display = 'none';
       debugEl.textContent = 'AR starting…';
     });
@@ -96,20 +135,14 @@
       music.currentTime = 0;
       music.play().catch(err => console.error('play error', err));
     });
-
     marker.addEventListener('markerLost', () => {
       debugEl.textContent = 'marker lost';
       music.pause();
       music.currentTime = 0;
     });
 
-    // Отслеживаем загрузку аудио
-    music.addEventListener('loadeddata', () => {
-      debugEl.textContent += ' | audio ok';
-    });
-    music.addEventListener('error', (e) => {
-      debugEl.textContent += ' | audio ERROR';
-    });
+    music.addEventListener('error', () => { debugEl.textContent += ' | audio ERROR'; });
+    music.addEventListener('loadeddata', () => { debugEl.textContent += ' | audio ok'; });
   </script>
 
 </body>
