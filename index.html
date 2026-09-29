@@ -9,24 +9,34 @@
   <style>
     html, body {
       margin: 0; padding: 0; height: 100%; overflow: hidden;
-      font-family: sans-serif; background: transparent;
+      font-family: -apple-system, sans-serif;
+      background: #000;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Принудительно показываем видео-элемент, который создаёт AR.js */
+    /* iOS Safari: AR.js вставляет video-элемент динамически.
+       Эти правила гарантируют, что он виден и растянут на весь экран. */
     video {
       position: fixed !important;
-      top: 0 !important; left: 0 !important;
-      width: 100vw !important; height: 100vh !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
       object-fit: cover !important;
       z-index: 1 !important;
       display: block !important;
+      background: #000 !important;
     }
 
-    /* Холст A-Frame — прозрачный поверх видео */
+    /* Canvas A-Frame — прозрачный, поверх видео, z-index выше */
     .a-canvas {
       position: fixed !important;
-      top: 0 !important; left: 0 !important;
-      width: 100vw !important; height: 100vh !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
       z-index: 2 !important;
       background: transparent !important;
     }
@@ -36,22 +46,17 @@
       display: flex; flex-direction: column; align-items: center;
       justify-content: center; z-index: 9999; text-align: center; padding: 20px;
     }
-    #start-btn, #test-btn {
-      padding: 16px 32px; font-size: 18px; border: none;
-      border-radius: 50px; color: #fff; cursor: pointer; margin: 6px;
+    #start-btn {
+      padding: 18px 40px; font-size: 20px; border: none;
+      border-radius: 50px; background: #4caf50; color: #fff; cursor: pointer;
+      -webkit-appearance: none;
     }
-    #start-btn { background: #4caf50; }
-    #test-btn  { background: #2196f3; }
     #status { margin-top: 20px; font-size: 13px; opacity: 0.7; white-space: pre-line; }
     #debug {
       position: fixed; top: 6px; left: 6px; z-index: 10000;
       color: #0f0; font-size: 12px; font-family: monospace;
       background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px;
       pointer-events: none; max-width: 90vw;
-    }
-    #video-test {
-      position: fixed; inset: 0; width: 100vw; height: 100vh;
-      object-fit: cover; z-index: 8000; display: none;
     }
   </style>
 </head>
@@ -60,14 +65,13 @@
   <div id="start-screen">
     <h1>AR Music Player</h1>
     <p>Наведите камеру на маркер Hiro</p>
-    <button id="test-btn">Тест камеры</button>
-    <button id="start-btn">Начать AR</button>
+    <button id="start-btn">Начать</button>
     <p id="status"></p>
   </div>
 
   <div id="debug">loading…</div>
-  <video id="video-test" playsinline autoplay muted></video>
 
+  <!-- ВАЖНО: без videoTexture: true -->
   <a-scene arjs="sourceType: webcam; debugUIEnabled: false;">
     <a-assets>
       <audio id="music" src="assets/sample.mp3" preload="auto"></audio>
@@ -84,36 +88,14 @@
   <script>
     const startScreen = document.querySelector('#start-screen');
     const startBtn    = document.querySelector('#start-btn');
-    const testBtn     = document.querySelector('#test-btn');
     const statusEl    = document.querySelector('#status');
     const debugEl     = document.querySelector('#debug');
     const marker      = document.querySelector('#marker');
     const music       = document.querySelector('#music');
-    const videoTest   = document.querySelector('#video-test');
 
     debugEl.textContent = window.AFRAME ? 'AFRAME ok' : 'AFRAME NOT loaded';
 
-    // --- ТЕСТ КАМЕРЫ (без AR) ---
-    testBtn.addEventListener('click', async () => {
-      debugEl.textContent = 'testing camera…';
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('getUserMedia недоступен (нужен HTTPS)');
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false
-        });
-        videoTest.srcObject = stream;
-        videoTest.style.display = 'block';
-        await videoTest.play();
-        debugEl.textContent = 'camera OK — видео видно?';
-      } catch (e) {
-        debugEl.textContent = 'camera FAIL: ' + e.name + ' — ' + e.message;
-      }
-    });
-
-    // --- РАЗБЛОКИРОВКА АУДИО (через muted, без звука) ---
+    // Разблокировка аудио через muted (беззвучно)
     startBtn.addEventListener('click', async () => {
       try {
         music.muted = true;
@@ -125,7 +107,6 @@
         statusEl.textContent = 'Ошибка аудио: ' + err.message;
         music.muted = false;
       }
-      videoTest.style.display = 'none';
       startScreen.style.display = 'none';
       debugEl.textContent = 'AR starting…';
     });
