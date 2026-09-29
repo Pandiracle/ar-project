@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>AR Music Player</title>
+  <title>AR Video Player</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
   <style>
@@ -16,27 +16,21 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* iOS Safari: AR.js вставляет video-элемент динамически.
-       Эти правила гарантируют, что он виден и растянут на весь экран. */
-    video {
+    /* Стили только для видео-камеры AR.js (не для нашего ролика!) */
+    #arjs-video {
       position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
+      top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
       object-fit: cover !important;
       z-index: 1 !important;
       display: block !important;
       background: #000 !important;
     }
 
-    /* Canvas A-Frame — прозрачный, поверх видео, z-index выше */
     .a-canvas {
       position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
+      top: 0 !important; left: 0 !important;
+      width: 100vw !important; height: 100vh !important;
       z-index: 2 !important;
       background: transparent !important;
     }
@@ -63,7 +57,7 @@
 <body>
 
   <div id="start-screen">
-    <h1>AR Music Player</h1>
+    <h1>AR Video Player</h1>
     <p>Наведите камеру на маркер Hiro</p>
     <button id="start-btn">Начать</button>
     <p id="status"></p>
@@ -71,15 +65,23 @@
 
   <div id="debug">loading…</div>
 
-  <!-- ВАЖНО: без videoTexture: true -->
   <a-scene arjs="sourceType: webcam; debugUIEnabled: false;">
     <a-assets>
-      <audio id="music" src="assets/sample.mp3" preload="auto"></audio>
+      <!-- Видео для AR. muted обязателен для iOS -->
+      <video id="ar-video"
+             src="assets/ar-video2.mp4"
+             playsinline
+             webkit-playsinline
+             muted
+             preload="auto"
+             crossorigin="anonymous"></video>
     </a-assets>
 
-    <a-marker type="pattern" url="assets/pattern-ar-image.patt">
-      <a-box position="0 0.5 0" material="color: #ff5252; opacity: 0.9;"></a-box>
-      <a-text value="Playing..." position="0 1.3 0" align="center" color="#fff"></a-text>
+    <a-marker preset="assets/pattern-ar-image.patt" id="marker">
+      <a-video src="#ar-video"
+               position="0 0.5 0"
+               width="1.6"
+               height="0.9"></a-video>
     </a-marker>
 
     <a-entity camera></a-entity>
@@ -91,21 +93,22 @@
     const statusEl    = document.querySelector('#status');
     const debugEl     = document.querySelector('#debug');
     const marker      = document.querySelector('#marker');
-    const music       = document.querySelector('#music');
+    const video       = document.querySelector('#ar-video');
 
     debugEl.textContent = window.AFRAME ? 'AFRAME ok' : 'AFRAME NOT loaded';
 
-    // Разблокировка аудио через muted (беззвучно)
+    // Разблокировка видео через user gesture (требование iOS)
     startBtn.addEventListener('click', async () => {
       try {
-        music.muted = true;
-        await music.play();
-        music.pause();
-        music.currentTime = 0;
-        music.muted = false;
+        video.muted = true;
+        video.currentTime = 0;
+        await video.play();
+        video.pause();
+        video.currentTime = 0;
+        video.muted = false;   // теперь звук разрешён
       } catch (err) {
-        statusEl.textContent = 'Ошибка аудио: ' + err.message;
-        music.muted = false;
+        statusEl.textContent = 'Ошибка видео: ' + err.message;
+        video.muted = false;
       }
       startScreen.style.display = 'none';
       debugEl.textContent = 'AR starting…';
@@ -113,17 +116,18 @@
 
     marker.addEventListener('markerFound', () => {
       debugEl.textContent = 'marker FOUND';
-      music.currentTime = 0;
-      music.play().catch(err => console.error('play error', err));
-    });
-    marker.addEventListener('markerLost', () => {
-      debugEl.textContent = 'marker lost';
-      music.pause();
-      music.currentTime = 0;
+      video.currentTime = 0;
+      video.muted = false;
+      video.play().catch(err => console.error('play error', err));
     });
 
-    music.addEventListener('error', () => { debugEl.textContent += ' | audio ERROR'; });
-    music.addEventListener('loadeddata', () => { debugEl.textContent += ' | audio ok'; });
+    marker.addEventListener('markerLost', () => {
+      debugEl.textContent = 'marker lost';
+      video.pause();   // не сбрасываем — вернётесь к маркеру, продолжит играть
+    });
+
+    video.addEventListener('error', () => { debugEl.textContent += ' | video ERROR'; });
+    video.addEventListener('loadeddata', () => { debugEl.textContent += ' | video ok'; });
   </script>
 
 </body>
