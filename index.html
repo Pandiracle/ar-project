@@ -7,7 +7,7 @@
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: sans-serif; background: #000; }
     #start-screen {
       position: fixed; inset: 0; background: #111; color: #fff;
       display: flex; flex-direction: column; align-items: center;
@@ -17,7 +17,13 @@
       padding: 18px 40px; font-size: 20px; border: none;
       border-radius: 50px; background: #4caf50; color: #fff; cursor: pointer;
     }
-    #status { margin-top: 20px; font-size: 14px; opacity: 0.7; }
+    #status { margin-top: 20px; font-size: 13px; opacity: 0.7; white-space: pre-line; }
+    #debug {
+      position: fixed; top: 6px; left: 6px; z-index: 10000;
+      color: #0f0; font-size: 12px; font-family: monospace;
+      background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 4px;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -29,13 +35,16 @@
     <p id="status"></p>
   </div>
 
-  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+  <div id="debug">loading…</div>
+
+  <!-- важно: БЕЗ атрибута embedded -->
+  <a-scene arjs="sourceType: webcam; debugUIEnabled: false;">
     <a-assets>
-      <audio id="music" src="assets/sample.mp3" preload="auto" crossorigin="anonymous"></audio>
+      <audio id="music" src="assets/music.mp3" preload="auto"></audio>
     </a-assets>
 
     <a-marker preset="hiro" id="marker">
-      <a-box position="0 0.5 0" material="color: #ff5252; opacity: 0.8;"></a-box>
+      <a-box position="0 0.5 0" material="color: #ff5252; opacity: 0.9;"></a-box>
       <a-text value="Playing..." position="0 1.3 0" align="center" color="#fff"></a-text>
     </a-marker>
 
@@ -46,30 +55,60 @@
     const startScreen = document.querySelector('#start-screen');
     const startBtn    = document.querySelector('#start-btn');
     const statusEl    = document.querySelector('#status');
+    const debugEl     = document.querySelector('#debug');
     const marker      = document.querySelector('#marker');
     const music       = document.querySelector('#music');
 
-    // Мобильные браузеры блокируют автозапуск звука.
-    // Нужен "жест пользователя" — клик по кнопке "Начать".
-    startBtn.addEventListener('click', async () => {
-      try {
-        // Проигрываем и сразу останавливаем, чтобы "разблокировать" аудио
-        await music.play();
+    // Отладка: показываем, что скрипты вообще загрузились
+    if (window.AFRAME) {
+      debugEl.textContent = 'AFRAME ok';
+    } else {
+      debugEl.textContent = 'AFRAME NOT loaded';
+    }
+
+    // Разблокировка аудио без «заигрывания»
+    startBtn.addEventListener('click', () => {
+      // 1. "Тихая" разблокировка: ставим громкость 0, играем 1 кадр, стопаем
+      music.volume = 0;
+      const p = music.play();
+      if (p && p.then) {
+        p.then(() => {
+          music.pause();
+          music.currentTime = 0;
+          music.volume = 1;
+        }).catch(err => {
+          statusEl.textContent = 'Ошибка аудио: ' + err.message;
+          music.volume = 1;
+        });
+      } else {
         music.pause();
         music.currentTime = 0;
-        startScreen.style.display = 'none';
-      } catch (e) {
-        statusEl.textContent = 'Ошибка аудио: ' + e.message;
+        music.volume = 1;
       }
+
+      // 2. Скрываем экран "Начать"
+      startScreen.style.display = 'none';
+      debugEl.textContent = 'AR starting…';
     });
 
     marker.addEventListener('markerFound', () => {
+      debugEl.textContent = 'marker FOUND';
+      music.currentTime = 0;
       music.play().catch(err => console.error('play error', err));
     });
 
     marker.addEventListener('markerLost', () => {
+      debugEl.textContent = 'marker lost';
       music.pause();
       music.currentTime = 0;
+    });
+
+    // Отслеживаем загрузку аудио
+    music.addEventListener('loadeddata', () => {
+      debugEl.textContent += ' | audio ok';
+    });
+    music.addEventListener('error', (e) => {
+      debugEl.textContent += ' | audio ERROR';
     });
   </script>
 
