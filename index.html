@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>AR Music Player</title>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    #start-screen {
+      position: fixed; inset: 0; background: #111; color: #fff;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; z-index: 9999; text-align: center; padding: 20px;
+    }
+    #start-btn {
+      padding: 18px 40px; font-size: 20px; border: none;
+      border-radius: 50px; background: #4caf50; color: #fff; cursor: pointer;
+    }
+    #status { margin-top: 20px; font-size: 14px; opacity: 0.7; }
+  </style>
+</head>
+<body>
+
+  <div id="start-screen">
+    <h1>AR Music Player</h1>
+    <p>Наведите камеру на маркер Hiro</p>
+    <button id="start-btn">Начать</button>
+    <p id="status"></p>
+  </div>
+
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-assets>
+      <audio id="music" src="assets/sample.mp3" preload="auto" crossorigin="anonymous"></audio>
+    </a-assets>
+
+    <a-marker preset="hiro" id="marker">
+      <a-box position="0 0.5 0" material="color: #ff5252; opacity: 0.8;"></a-box>
+      <a-text value="Playing..." position="0 1.3 0" align="center" color="#fff"></a-text>
+    </a-marker>
+
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script>
+    const startScreen = document.querySelector('#start-screen');
+    const startBtn    = document.querySelector('#start-btn');
+    const statusEl    = document.querySelector('#status');
+    const marker      = document.querySelector('#marker');
+    const music       = document.querySelector('#music');
+
+    // Мобильные браузеры блокируют автозапуск звука.
+    // Нужен "жест пользователя" — клик по кнопке "Начать".
+    startBtn.addEventListener('click', async () => {
+      try {
+        // Проигрываем и сразу останавливаем, чтобы "разблокировать" аудио
+        await music.play();
+        music.pause();
+        music.currentTime = 0;
+        startScreen.style.display = 'none';
+      } catch (e) {
+        statusEl.textContent = 'Ошибка аудио: ' + e.message;
+      }
+    });
+
+    marker.addEventListener('markerFound', () => {
+      music.play().catch(err => console.error('play error', err));
+    });
+
+    marker.addEventListener('markerLost', () => {
+      music.pause();
+      music.currentTime = 0;
+    });
+  </script>
+
+</body>
+</html>
