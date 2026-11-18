@@ -7,36 +7,54 @@
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; background: #000; font-family: sans-serif; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    #app {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .a-canvas {
+      background: transparent !important;
+    }
 
     #hint {
       position: fixed;
       top: 0; left: 0; right: 0;
-      z-index: 20;
+      z-index: 1000;
       padding: 12px;
       text-align: center;
       color: #fff;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.65);
       font-size: 14px;
     }
 
+    #hint a { color: #8cf; word-break: break-all; }
+
     #status {
       position: fixed;
-      bottom: 20px; left: 50%;
+      bottom: 18px; left: 50%;
       transform: translateX(-50%);
-      z-index: 20;
+      z-index: 1000;
       padding: 8px 16px;
       border-radius: 20px;
       color: #fff;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.65);
       font-size: 13px;
+      white-space: nowrap;
     }
 
     #sound-btn {
       position: fixed;
       bottom: 60px; left: 50%;
       transform: translateX(-50%);
-      z-index: 30;
+      z-index: 1001;
       display: none;
       padding: 10px 20px;
       border: none;
@@ -46,90 +64,128 @@
       font-size: 15px;
     }
 
-    a-scene { width: 100%; height: 100%; }
+    #scan-frame {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80vw; height: 80vw;
+      max-height: 60vh; max-width: 60vh;
+      z-index: 900;
+      pointer-events: none;
+      display: none;
+    }
+
+    #scan-frame.visible { display: block; }
+
+    #scan-frame .corner {
+      position: absolute;
+      width: 36px; height: 36px;
+      border: 4px solid #fff;
+      opacity: 0.85;
+    }
+
+    #scan-frame .corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+    #scan-frame .corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
+    #scan-frame .corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
+    #scan-frame .corner.br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
   </style>
 </head>
 <body>
   <div id="hint">
-    Наведите камеру на картинку-маркер:
+    Наведите камеру на картинку-маркер:<br />
   </div>
 
-  <div id="status">Загрузка камеры…</div>
+  <div id="status">Загрузка…</div>
   <button id="sound-btn">&#128266; Включить звук</button>
 
-  <a-scene
-    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; uiLoading: no; uiScanning: no;"
-    color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false">
+  <div id="scan-frame">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+  </div>
 
-    <a-assets>
-      <img id="markerTex" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" crossorigin="anonymous" />
+  <div id="app">
+    <a-scene
+      embedded
+      mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
 
-      <video id="arvideo"
-        autoplay
-        muted
-        loop
-        playsinline
-        webkit-playsinline
-        preload="auto"
-        crossorigin="anonymous"
-        src="assets/ar-video.mp4"></video>
-    </a-assets>
+      <a-assets>
+        <video id="arvideo"
+          autoplay
+          muted
+          loop
+          playsinline
+          webkit-playsinline
+          preload="auto"
+          crossorigin="anonymous"
+          src="/ar-video.mp4"></video>
+      </a-assets>
 
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <a-entity id="target" mindar-image-target="targetIndex: 0">
-      <a-plane src="#markerTex"
-        width="1" height="0.552"
-        position="0 0 0.001"
-        opacity="0.15"></a-plane>
-
-      <a-video src="#arvideo"
-        width="1" height="0.5625"
-        position="0 0 0.005"></a-video>
-    </a-entity>
-  </a-scene>
+      <a-entity id="target" mindar-image-target="targetIndex: 0">
+        <a-video src="#arvideo"
+          width="1" height="0.5625"
+          position="0 0 0.005"></a-video>
+      </a-entity>
+    </a-scene>
+  </div>
 
   <script>
-    const VIDEO_URL = 'assets/ar-video.mp4';
+    const VIDEO_URL = '/ar-video.mp4';
 
     const video = document.getElementById('arvideo');
     const target = document.getElementById('target');
     const status = document.getElementById('status');
     const soundBtn = document.getElementById('sound-btn');
+    const scanFrame = document.getElementById('scan-frame');
 
     video.src = VIDEO_URL;
 
     let playing = false;
+    let statusTimer = null;
 
-    function setStatus(text) {
+    function setStatus(text, sticky = false) {
+      clearTimeout(statusTimer);
       status.textContent = text;
-      status.style.display = 'block';
-      setTimeout(() => { status.style.display = 'none'; }, 2500);
+      if (!sticky) {
+        statusTimer = setTimeout(() => { status.textContent = ''; }, 3000);
+      }
     }
+
+    const sceneEl = document.querySelector('a-scene');
+
+    sceneEl.addEventListener('loaded', () => {
+      setStatus('Инициализация распознавания…', true);
+      ensureCameraVisible();
+    });
+
+    sceneEl.addEventListener('arReady', () => {
+      setStatus('Наведите на картинку-маркер', true);
+    });
+
+    sceneEl.addEventListener('arError', () => {
+      setStatus('Ошибка доступа к камере. Разрешите камеру и откройте страницу по HTTPS', true);
+    });
 
     target.addEventListener('targetFound', () => {
       playing = true;
+      scanFrame.classList.remove('visible');
       video.play().catch(() => {});
-      setStatus('Видео воспроизводится');
       soundBtn.style.display = 'block';
     });
 
     target.addEventListener('targetLost', () => {
       playing = false;
       video.pause();
-      setStatus('Маркер потерян');
-    });
-
-    video.addEventListener('loadeddata', () => {
-      setStatus('Камера работает. Наведите на картинку-маркер');
-    });
-
-    const sceneEl = document.querySelector('a-scene');
-    sceneEl.addEventListener('loaded', () => {
-      setStatus('Инициализация распознавания…');
+      soundBtn.style.display = 'none';
+      scanFrame.classList.add('visible');
+      setStatus('Маркер потерян — наведите камеру заново', true);
     });
 
     soundBtn.addEventListener('click', () => {
@@ -137,6 +193,45 @@
       if (playing) video.play().catch(() => {});
       soundBtn.style.display = 'none';
     });
+
+    video.addEventListener('playing', () => {
+      if (playing) setStatus('');
+    });
+
+    video.addEventListener('error', () => {
+      setStatus('Видео не загрузилось. Проверьте ссылку VIDEO_URL', true);
+    });
+
+    function ensureCameraVisible() {
+      const camVideo = document.getElementById('arvideo');
+      document.querySelectorAll('video').forEach((v) => {
+        if (v === camVideo) return;
+        if (getComputedStyle(v).display === 'none') return;
+        v.setAttribute('playsinline', '');
+        v.style.position = 'fixed';
+        v.style.top = '0px';
+        v.style.left = '0px';
+        v.style.width = '100%';
+        v.style.height = '100%';
+        v.style.objectFit = 'cover';
+        v.style.zIndex = '-2';
+        v.style.background = 'transparent';
+      });
+      const canvas = document.querySelector('.a-canvas');
+      if (canvas) {
+        canvas.style.background = 'transparent';
+        if (!canvas.style.zIndex || canvas.style.zIndex === 'auto') {
+          canvas.style.zIndex = '-1';
+        }
+      }
+      document.body.style.background = 'transparent';
+    }
+
+    setTimeout(ensureCameraVisible, 2000);
+    setTimeout(ensureCameraVisible, 6000);
+
+    scanFrame.classList.add('visible');
+    setStatus('Загрузка…', true);
   </script>
 </body>
 </html>
