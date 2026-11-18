@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MindAR — тест: видео поверх картинки</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; font-family: sans-serif; }
+
+    #hint {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 20;
+      padding: 12px;
+      text-align: center;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.6);
+      font-size: 14px;
+    }
+
+    #status {
+      position: fixed;
+      bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      padding: 8px 16px;
+      border-radius: 20px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.6);
+      font-size: 13px;
+    }
+
+    #sound-btn {
+      position: fixed;
+      bottom: 60px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
+      display: none;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 24px;
+      background: #fff;
+      color: #000;
+      font-size: 15px;
+    }
+
+    a-scene { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="hint">
+    Наведите камеру на картинку-маркер:<br />
+    <a href="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" target="_blank" style="color:#8cf">
+      https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png
+    </a>
+  </div>
+
+  <div id="status">Загрузка камеры…</div>
+  <button id="sound-btn">&#128266; Включить звук</button>
+
+  <a-scene
+    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; uiLoading: no; uiScanning: no;"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-assets>
+      <img id="markerTex" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png" crossorigin="anonymous" />
+
+      <video id="arvideo"
+        autoplay
+        muted
+        loop
+        playsinline
+        webkit-playsinline
+        preload="auto"
+        crossorigin="anonymous"
+        src="assets/ar-video.mp4"></video>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <a-entity id="target" mindar-image-target="targetIndex: 0">
+      <a-plane src="#markerTex"
+        width="1" height="0.552"
+        position="0 0 0.001"
+        opacity="0.15"></a-plane>
+
+      <a-video src="#arvideo"
+        width="1" height="0.5625"
+        position="0 0 0.005"></a-video>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const VIDEO_URL = 'assets/ar-video.mp4';
+
+    const video = document.getElementById('arvideo');
+    const target = document.getElementById('target');
+    const status = document.getElementById('status');
+    const soundBtn = document.getElementById('sound-btn');
+
+    video.src = VIDEO_URL;
+
+    let playing = false;
+
+    function setStatus(text) {
+      status.textContent = text;
+      status.style.display = 'block';
+      setTimeout(() => { status.style.display = 'none'; }, 2500);
+    }
+
+    target.addEventListener('targetFound', () => {
+      playing = true;
+      video.play().catch(() => {});
+      setStatus('Видео воспроизводится');
+      soundBtn.style.display = 'block';
+    });
+
+    target.addEventListener('targetLost', () => {
+      playing = false;
+      video.pause();
+      setStatus('Маркер потерян');
+    });
+
+    video.addEventListener('loadeddata', () => {
+      setStatus('Камера работает. Наведите на картинку-маркер');
+    });
+
+    const sceneEl = document.querySelector('a-scene');
+    sceneEl.addEventListener('loaded', () => {
+      setStatus('Инициализация распознавания…');
+    });
+
+    soundBtn.addEventListener('click', () => {
+      video.muted = false;
+      if (playing) video.play().catch(() => {});
+      soundBtn.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
