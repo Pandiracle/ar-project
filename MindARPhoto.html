@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Локальный компилятор MindAR — targets.mind</title>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 720px; margin: 30px auto; padding: 0 16px; }
+    #status { font-weight: bold; margin: 16px 0; min-height: 24px; }
+    #error { color: #c00; white-space: pre-wrap; }
+    ol { font-family: monospace; }
+    button { padding: 10px 20px; font-size: 16px; margin-right: 8px; }
+    #download { opacity: 0.4; }
+    #download.enabled { opacity: 1; }
+    .note { color: #666; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Компилятор MindAR (локально)</h1>
+
+  <p>1. Выберите картинки (в порядке <b>targetIndex 0, 1, 2…</b> — индексы присваиваются в порядке выбора в этом диалоге!)</p>
+  <p><input type="file" id="files" accept="image/*" multiple /></p>
+  <p>
+    <button id="start">Скомпилировать</button>
+    <button id="download" disabled>Скачать targets.mind</button>
+  </p>
+
+  <div id="status">Ожидание…</div>
+  <div id="error"></div>
+
+  <p class="note">
+    Каждый запуск компилирует заново и создаёт один общий targets.mind для всех выбранных картинок.
+    Картинки лучше не более ~1000 px по большей стороне. Если компиляция «висит» — откройте консоль (F12)
+    и посмотрите красные ошибки.
+  </p>
+
+  <script>
+    const filesInput = document.getElementById('files');
+    const startBtn = document.getElementById('start');
+    const downloadBtn = document.getElementById('download');
+    const status = document.getElementById('status');
+    const errorBox = document.getElementById('error');
+
+    let exportedBuffer = null;
+
+    function setProgress(value) {
+      const pct = (value <= 1) ? value * 100 : value;
+      status.textContent = 'Компиляция… ' + pct.toFixed(1) + '%';
+    }
+
+    function loadImage(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Не удалось прочитать ' + file.name));
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    startBtn.addEventListener('click', async () => {
+      errorBox.textContent = '';
+      downloadBtn.disabled = true;
+      downloadBtn.classList.remove('enabled');
+      exportedBuffer = null;
+
+      if (filesInput.files.length === 0) {
+        errorBox.textContent = 'Сначала выберите картинки.';
+        return;
+      }
+
+      try {
+        status.textContent = 'Чтение картинок…';
+        const images = [];
+        for (const file of filesInput.files) {
+          images.push(await loadImage(file));
+          status.textContent = 'Прочитано ' + images.length + ' из ' + filesInput.files.length;
+        }
+
+        const compiler = new MINDAR.IMAGE.Compiler();
+
+        status.textContent = 'Компиляция… 0%';
+        const dataList = await compiler.compileImageTargets(images, setProgress);
+
+        status.textContent = 'Экспорт…';
+        exportedBuffer = await compiler.exportData();
+
+        status.textContent = 'Готово! Картинок: ' + dataList.length +
+          '. Нажмите «Скачать targets.mind».';
+        downloadBtn.disabled = false;
+        downloadBtn.classList.add('enabled');
+      } catch (err) {
+        status.textContent = 'Ошибка компиляции.';
+        errorBox.textContent = (err && err.message ? err.message : String(err)) +
+          '\nСмотрите консоль (F12). Частые причины: блокировщик рекламы режет CDN, отключено ускорение WebGL.';
+        console.error(err);
+      }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!exportedBuffer) return;
+      const blob = new Blob([exportedBuffer]);
+      const a = document.createElement('a');
+      a.download = 'targets.mind';
+      a.href = URL.createObjectURL(blob);
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  </script>
+</body>
+</html>
