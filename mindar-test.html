@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MindAR — тест: видео поверх картинки</title>
+  <title>MindAR — 4 картинки, одно видео</title>
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
   <style>
@@ -34,8 +34,6 @@
       background: rgba(0, 0, 0, 0.65);
       font-size: 14px;
     }
-
-    #hint a { color: #8cf; word-break: break-all; }
 
     #status {
       position: fixed;
@@ -72,10 +70,7 @@
       max-height: 60vh; max-width: 60vh;
       z-index: 900;
       pointer-events: none;
-      display: none;
     }
-
-    #scan-frame.visible { display: block; }
 
     #scan-frame .corner {
       position: absolute;
@@ -92,7 +87,7 @@
 </head>
 <body>
   <div id="hint">
-    Наведите камеру на картинку-маркер:<br />
+    Наведите камеру на одну из 4 картинок-маркеров
   </div>
 
   <div id="status">Загрузка…</div>
@@ -108,7 +103,7 @@
   <div id="app">
     <a-scene
       embedded
-      mindar-image="imageTargetSrc: ./test7.mind;"
+      mindar-image="imageTargetSrc: ./4photo.mind;"
       color-space="sRGB"
       renderer="colorManagement: true, physicallyCorrectLights"
       vr-mode-ui="enabled: false"
@@ -128,26 +123,31 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity id="target" mindar-image-target="targetIndex: 0">
-        <a-video src="#arvideo"
-          width="1" height="0.5625"
-          position="0 0 0.005"></a-video>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-video src="#arvideo" width="1" height="0.5625" position="0 0 0.01"></a-video>
+      </a-entity>
+
+      <a-entity mindar-image-target="targetIndex: 1">
+        <a-video src="#arvideo" width="1" height="0.5625" position="0 0 0.01"></a-video>
+      </a-entity>
+
+      <a-entity mindar-image-target="targetIndex: 2">
+        <a-video src="#arvideo" width="1" height="0.5625" position="0 0 0.01"></a-video>
+      </a-entity>
+
+      <a-entity mindar-image-target="targetIndex: 3">
+        <a-video src="#arvideo" width="1" height="0.5625" position="0 0 0.01"></a-video>
       </a-entity>
     </a-scene>
   </div>
 
   <script>
-    const VIDEO_URL = 'assets/ar-video.mp4';
-
     const video = document.getElementById('arvideo');
-    const target = document.getElementById('target');
     const status = document.getElementById('status');
     const soundBtn = document.getElementById('sound-btn');
     const scanFrame = document.getElementById('scan-frame');
 
-    video.src = VIDEO_URL;
-
-    let playing = false;
+    let foundCount = 0;
     let statusTimer = null;
 
     function setStatus(text, sticky = false) {
@@ -166,40 +166,40 @@
     });
 
     sceneEl.addEventListener('arReady', () => {
-      setStatus('Наведите на картинку-маркер', true);
+      setStatus('Наведите на одну из картинок', true);
     });
 
     sceneEl.addEventListener('arError', () => {
-      setStatus('Ошибка доступа к камере. Разрешите камеру и откройте страницу по HTTPS', true);
+      setStatus('Ошибка запуска AR. Разрешите камеру и откройте страницу по HTTPS', true);
     });
 
-    target.addEventListener('targetFound', () => {
-      playing = true;
-      scanFrame.classList.remove('visible');
-      video.play().catch(() => {});
-      soundBtn.style.display = 'block';
-    });
+    document.querySelectorAll('[mindar-image-target]').forEach((el) => {
+      el.addEventListener('targetFound', () => {
+        foundCount++;
+        video.play().catch(() => {});
+        scanFrame.style.display = 'none';
+        soundBtn.style.display = 'block';
+      });
 
-    target.addEventListener('targetLost', () => {
-      playing = false;
-      video.pause();
-      soundBtn.style.display = 'none';
-      scanFrame.classList.add('visible');
-      setStatus('Маркер потерян — наведите камеру заново', true);
+      el.addEventListener('targetLost', () => {
+        foundCount = Math.max(0, foundCount - 1);
+        if (foundCount === 0) {
+          video.pause();
+          soundBtn.style.display = 'none';
+          scanFrame.style.display = 'block';
+          setStatus('Наведите на картинку', true);
+        }
+      });
     });
 
     soundBtn.addEventListener('click', () => {
       video.muted = false;
-      if (playing) video.play().catch(() => {});
+      video.play().catch(() => {});
       soundBtn.style.display = 'none';
     });
 
-    video.addEventListener('playing', () => {
-      if (playing) setStatus('');
-    });
-
     video.addEventListener('error', () => {
-      setStatus('Видео не загрузилось. Проверьте ссылку VIDEO_URL', true);
+      setStatus('Видео не загрузилось: assets/ar-video.mp4', true);
     });
 
     function ensureCameraVisible() {
@@ -230,7 +230,6 @@
     setTimeout(ensureCameraVisible, 2000);
     setTimeout(ensureCameraVisible, 6000);
 
-    scanFrame.classList.add('visible');
     setStatus('Загрузка…', true);
   </script>
 </body>
