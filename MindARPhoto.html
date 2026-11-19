@@ -3,45 +3,58 @@
 <head>
   <meta charset="utf-8" />
   <title>Локальный компилятор MindAR — targets.mind</title>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js"></script>
   <style>
     body { font-family: sans-serif; max-width: 720px; margin: 30px auto; padding: 0 16px; }
     #status { font-weight: bold; margin: 16px 0; min-height: 24px; }
     #error { color: #c00; white-space: pre-wrap; }
-    ol { font-family: monospace; }
     button { padding: 10px 20px; font-size: 16px; margin-right: 8px; }
     #download { opacity: 0.4; }
     #download.enabled { opacity: 1; }
     .note { color: #666; font-size: 13px; }
+    code { background: #f4f4f4; padding: 2px 5px; border-radius: 4px; }
   </style>
 </head>
 <body>
   <h1>Компилятор MindAR (локально)</h1>
 
-  <p>1. Выберите картинки (в порядке <b>targetIndex 0, 1, 2…</b> — индексы присваиваются в порядке выбора в этом диалоге!)</p>
+  <p>1. Выберите картинки (в порядке <b>targetIndex 0, 1, 2…</b> — индексы присваиваются в порядке выбора в диалоге)</p>
   <p><input type="file" id="files" accept="image/*" multiple /></p>
   <p>
     <button id="start">Скомпилировать</button>
     <button id="download" disabled>Скачать targets.mind</button>
   </p>
 
-  <div id="status">Ожидание…</div>
+  <div id="status">Загрузка библиотеки MindAR…</div>
   <div id="error"></div>
 
   <p class="note">
     Каждый запуск компилирует заново и создаёт один общий targets.mind для всех выбранных картинок.
-    Картинки лучше не более ~1000 px по большей стороне. Если компиляция «висит» — откройте консоль (F12)
-    и посмотрите красные ошибки.
+    Картинки не более ~1000 px по большей стороне. Ошибки смотрите в консоли (F12).
   </p>
 
-  <script>
+  <script type="module">
+    import * as MINDAR_MODULE from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
+
     const filesInput = document.getElementById('files');
     const startBtn = document.getElementById('start');
     const downloadBtn = document.getElementById('download');
     const status = document.getElementById('status');
     const errorBox = document.getElementById('error');
 
+    const Compiler = MINDAR_MODULE.Compiler
+      || (MINDAR_MODULE.IMAGE && MINDAR_MODULE.IMAGE.Compiler);
+
     let exportedBuffer = null;
+    let compiler = null;
+
+    if (!Compiler) {
+      status.textContent = '';
+      errorBox.textContent = 'В модуле не найден класс Compiler. Пришлите текст ошибки из консоли (F12).';
+      console.error('Экспорты модуля MINDAR:', Object.keys(MINDAR_MODULE));
+    } else {
+      compiler = new Compiler();
+      status.textContent = 'Библиотека загружена. Выберите картинки и нажмите «Скомпилировать».';
+    }
 
     function setProgress(value) {
       const pct = (value <= 1) ? value * 100 : value;
@@ -58,6 +71,7 @@
     }
 
     startBtn.addEventListener('click', async () => {
+      if (!compiler) return;
       errorBox.textContent = '';
       downloadBtn.disabled = true;
       downloadBtn.classList.remove('enabled');
@@ -76,8 +90,6 @@
           status.textContent = 'Прочитано ' + images.length + ' из ' + filesInput.files.length;
         }
 
-        const compiler = new MINDAR.IMAGE.Compiler();
-
         status.textContent = 'Компиляция… 0%';
         const dataList = await compiler.compileImageTargets(images, setProgress);
 
@@ -90,8 +102,7 @@
         downloadBtn.classList.add('enabled');
       } catch (err) {
         status.textContent = 'Ошибка компиляции.';
-        errorBox.textContent = (err && err.message ? err.message : String(err)) +
-          '\nСмотрите консоль (F12). Частые причины: блокировщик рекламы режет CDN, отключено ускорение WebGL.';
+        errorBox.textContent = (err && err.message ? err.message : String(err));
         console.error(err);
       }
     });
