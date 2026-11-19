@@ -7,17 +7,17 @@
     body { font-family: sans-serif; max-width: 720px; margin: 30px auto; padding: 0 16px; }
     #status { font-weight: bold; margin: 16px 0; min-height: 24px; }
     #error { color: #c00; white-space: pre-wrap; }
+    #points-list { font-family: monospace; }
     button { padding: 10px 20px; font-size: 16px; margin-right: 8px; }
     #download { opacity: 0.4; }
     #download.enabled { opacity: 1; }
     .note { color: #666; font-size: 13px; }
-    code { background: #f4f4f4; padding: 2px 5px; border-radius: 4px; }
   </style>
 </head>
 <body>
   <h1>Компилятор MindAR (локально)</h1>
 
-  <p>1. Выберите картинки (в порядке <b>targetIndex 0, 1, 2…</b> — индексы присваиваются в порядке выбора в диалоге)</p>
+  <p>Выберите картинки (в порядке <b>targetIndex 0, 1, 2…</b> — индексы присваиваются в порядке выбора в диалоге)</p>
   <p><input type="file" id="files" accept="image/*" multiple /></p>
   <p>
     <button id="start">Скомпилировать</button>
@@ -26,6 +26,7 @@
 
   <div id="status">Загрузка библиотеки MindAR…</div>
   <div id="error"></div>
+  <ol id="points-list"></ol>
 
   <p class="note">
     Каждый запуск компилирует заново и создаёт один общий targets.mind для всех выбранных картинок.
